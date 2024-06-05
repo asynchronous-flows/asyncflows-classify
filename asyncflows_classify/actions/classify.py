@@ -1,52 +1,15 @@
 import re
-from typing import Optional, Any
+from typing import Optional
 from asyncflows.actions.base import (
-    StreamingAction,
     DefaultModelInputs,
 )
 from asyncflows import Action, BaseModel
 from asyncflows.actions.utils.prompt_context import TextElement
-from asyncflows.models.config.model import OptionalModelConfig, ModelConfig
-import json
-import logging
-import os
-import tempfile
-import base64
-from typing import Optional, AsyncIterator
-from asyncflows.models.config.value_declarations import (
-    VarDeclaration,
-    TextDeclaration,
-    LambdaDeclaration,
-    Declaration,
-    LinkDeclaration,
-    # ConstDeclaration,
-)
-import aiohttp
-import tenacity
+from asyncflows.models.config.model import OptionalModelConfig
 from asyncflows.utils.async_utils import (
     iterator_to_coro,
 )
-from asyncflows.actions.base import (
-    StreamingAction,
-    DefaultModelInputs,
-    BaseModel,
-    Field,
-)
 
-from asyncflows.actions.utils.prompt_context import (
-    RoleElement,
-    PromptElement,
-    QuoteStyle,
-    TextElement,
-    PromptContextInConfigTemplate,
-)
-from asyncflows.models.config.model import OptionalModelConfig, ModelConfig
-
-import litellm
-
-from asyncflows.utils.async_utils import Timer, measure_async_iterator
-from asyncflows.utils.secret_utils import get_secret
-from asyncflows.utils.singleton_utils import SingletonContext
 
 from asyncflows.actions.prompt import Prompt, Inputs as PromptInputs
 
@@ -65,7 +28,7 @@ as possible when labeling text. You use inference or deduction whenever
 necessary to understand missing or omitted data. Classify the provided data,
 text, or information as one of the provided labels. For boolean labels,
 consider "truthy" or affirmative inputs to be "true".
-"""
+""",
     ),
     TextElement(
         role="user",
@@ -86,12 +49,9 @@ You must classify the data as one of the following labels, which are numbered (s
 {% for label in labels %}
 - Label #{{ loop.index0 }}: {{ label }}
 {% endfor %}
-"""
+""",
     ),
-    TextElement(
-        role="assistant",
-        text="The best label for the data is Label"
-    )
+    TextElement(role="assistant", text="The best label for the data is Label"),
 ]
 
 
@@ -110,23 +70,26 @@ class Classify(Action[Inputs, Outputs]):
     name = "classify"
 
     async def run(self, inputs: Inputs) -> Outputs:
-        rendered_prompt = await render_templates(prompt, {
-            "data": inputs.data,
-            "labels": inputs.labels,
-            "instructions": inputs.additional_instructions,
-        })
+        rendered_prompt = await render_templates(
+            prompt,
+            {
+                "data": inputs.data,
+                "labels": inputs.labels,
+                "instructions": inputs.additional_instructions,
+            },
+        )
         prompt_inputs = PromptInputs(
             prompt=rendered_prompt,
             model=inputs.model,
         )
         prompt_inputs._default_model = inputs._default_model
 
-        prompt_action = Prompt(
-            log=self.log,
-            temp_dir=self.temp_dir
-        )
+        prompt_action = Prompt(log=self.log, temp_dir=self.temp_dir)
 
         prompt_outputs = await iterator_to_coro(prompt_action.run(prompt_inputs))
+        if prompt_outputs is None:
+            self.log.error("Error invoking prompt; no outputs received")
+            return Outputs(classification=None)
         text_result = prompt_outputs.result
 
         # find the first integer
@@ -135,13 +98,15 @@ class Classify(Action[Inputs, Outputs]):
             index = int(search.group())
             if 0 <= index < len(inputs.labels):
                 return Outputs(classification=inputs.labels[index])
-            self.log.error(f"Invalid classification index", index=index)
+            self.log.error("Invalid classification index", index=index)
 
         # else, try to find the label substring in the text result
         for label in inputs.labels:
             if label in text_result:
                 return Outputs(classification=label)
 
-        self.log.error(f"Could not find a valid classification in the result", result=text_result)
+        self.log.error(
+            "Could not find a valid classification in the result", result=text_result
+        )
 
         return Outputs(classification=None)

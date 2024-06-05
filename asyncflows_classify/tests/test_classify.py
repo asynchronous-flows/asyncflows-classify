@@ -28,9 +28,11 @@ from asyncflows.models.config.model import ModelConfig
                 additional_instructions="The statement in the data is a lie. The word happy has a negative connotation",
             ),
             Outputs(classification="negative"),
-        )
+        ),
     ],
 )
+@pytest.mark.slow
+@pytest.mark.allow_skip
 @pytest.mark.asyncio
 async def test_classify(log, temp_dir, inputs, expected_outputs):
     inputs._default_model = ModelConfig(

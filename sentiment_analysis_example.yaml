@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/asynchronous-flows/asyncflows/main/schemas/asyncflows_schema.json
+
+default_model:
+  model: ollama/llama3
+  max_output_tokens: 50
+flow:
+  sentiment_analysis:
+    action: classify
+    labels:
+      - funky
+      - janky
+      - serious
+    data:
+      var: data
+  hello_world:
+    action: prompt
+    prompt:
+      - text: Can you say hello world for me in a {{ sentiment_analysis.classification }} way?
+default_output: hello_world.result

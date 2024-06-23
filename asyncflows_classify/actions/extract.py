@@ -1,8 +1,5 @@
 from typing import Optional
-from asyncflows.actions.base import (
-    DefaultModelInputs,
-)
-from asyncflows import Action, BaseModel
+from asyncflows import Action, BaseModel, DefaultModelInputs
 from asyncflows.actions.utils.prompt_context import TextElement
 from asyncflows.models.config.model import OptionalModelConfig
 from asyncflows.utils.async_utils import (

@@ -1,6 +1,6 @@
 import re
 from typing import Optional
-from asyncflows.actions.base import (
+from asyncflows import (
     DefaultModelInputs,
 )
 from asyncflows import Action, BaseModel
